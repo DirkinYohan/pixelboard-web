@@ -146,18 +146,56 @@ Al desmontar (`cleanup` del `useEffect`) se hace `AbortController.abort()`: Conn
 
 ## Despliegue en Vercel
 
-1. Importa el repositorio `pixelboard-web` en Vercel (framework **Next.js**, sin configuración extra).
-2. Añade la variable de entorno de producción:
-   - `NEXT_PUBLIC_API_URL` = `https://pixelboard-gateway-xxxxx.a.run.app` (la URL del gateway).
-3. Deploy.
-4. **Último paso:** actualiza el `ALLOWED_ORIGIN` del gateway con el dominio de Vercel:
+### 0) Sube el repositorio a GitHub
 
-~~~bash
-gcloud run services update pixelboard-gateway --region us-central1 \
-  --update-env-vars ALLOWED_ORIGIN=https://tu-app.vercel.app
-~~~
+```bash
+git init && git add . && git commit -m "pixelboard-web"
+git branch -M main
+git remote add origin https://github.com/<tu-usuario>/pixelboard-web.git
+git push -u origin main
+```
 
-> `NEXT_PUBLIC_*` se incrusta en el bundle en **tiempo de build**: si cambias la URL del gateway, hay que **volver a desplegar** en Vercel (no basta con editar la variable).
+> `src/gen` **está en el repo a propósito**, así Vercel no necesita `buf` para construir. El `postinstall` de `@bufbuild/buf` puede quedar bloqueado por npm 11 y da igual: no se usa en el build.
+
+### 1) Importa el proyecto
+
+**vercel.com → Add New → Project → Import Git Repository → `pixelboard-web`**
+
+Vercel detecta Next.js solo. **No toques** Build Command, Output Directory ni Root Directory.
+
+### 2) Variable de entorno
+
+| Key | Value |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | `https://pixelboard-gateway.onrender.com` |
+
+Márcala para **Production, Preview y Development**.
+
+> Es una variable de **build-time** (va incrustada en el bundle): si cambias la URL del gateway, hay que **redesplegar** en Vercel.
+
+### 3) Deploy y cierre del círculo CORS
+
+1. Copia el dominio de producción que te asigna Vercel (`https://pixelboard.vercel.app`).
+2. En Render → `pixelboard-gateway` → **Environment**, pon:
+   ```text
+   ALLOWED_ORIGIN=https://pixelboard.vercel.app,https://pixelboard-*.vercel.app
+   ```
+3. Guarda. Render redespliega el gateway solo.
+
+El comodín `https://pixelboard-*.vercel.app` cubre además todos los dominios de **preview**, así que cada PR funciona sin tocar nada.
+
+### Comprobación rápida
+
+```bash
+# ¿responde el gateway?
+curl -s https://pixelboard-gateway.onrender.com/health
+
+# ¿el CORS acepta tu dominio de Vercel?
+curl -s -i -X OPTIONS https://pixelboard-gateway.onrender.com/board.v1.BoardService/GetBoard \
+  -H "Origin: https://pixelboard.vercel.app" \
+  -H "Access-Control-Request-Method: POST"
+# -> 204 + Access-Control-Allow-Origin: https://pixelboard.vercel.app
+```
 
 ## Problemas comunes
 
