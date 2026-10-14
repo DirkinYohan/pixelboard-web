@@ -1,0 +1,423 @@
+:root {
+  color-scheme: dark;
+  --bg: #0a0c11;
+  --text: #e9ecf3;
+  --muted: #838c9f;
+  --line: rgba(255, 255, 255, 0.09);
+  --ease: cubic-bezier(0.22, 0.85, 0.24, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  position: relative;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui,
+    -apple-system, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Fondo "aurora": tres manchas de color difuminadas que derivan lentamente. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -25%;
+  z-index: -1;
+  background:
+    radial-gradient(38% 38% at 16% 10%, rgba(99, 102, 241, 0.3), transparent 70%),
+    radial-gradient(30% 30% at 86% 16%, rgba(34, 211, 238, 0.22), transparent 70%),
+    radial-gradient(44% 44% at 52% 104%, rgba(168, 85, 247, 0.24), transparent 72%);
+  filter: blur(12px);
+  animation: drift 24s ease-in-out infinite alternate;
+}
+
+.page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 32px 20px 44px;
+}
+
+.hero {
+  text-align: center;
+  animation: rise 0.65s var(--ease) both;
+}
+
+.hero__title {
+  margin: 0;
+  font-size: clamp(30px, 5.2vw, 46px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  background: linear-gradient(102deg, #ffffff 0%, #cbd5ff 46%, #86e2ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hint {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+  animation: rise 0.75s 0.1s var(--ease) both;
+}
+
+/* ---------------- tarjeta ---------------- */
+
+.board-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 17px;
+  border-radius: 26px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.028));
+  box-shadow:
+    0 34px 90px rgba(0, 0, 0, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  animation: rise 0.75s var(--ease) both;
+}
+
+.board-card__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+}
+
+/* ---------------- píldora de estado ---------------- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 13px 6px 11px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  transition:
+    color 0.35s ease,
+    background 0.35s ease,
+    border-color 0.35s ease;
+}
+
+.pill__dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pill--connected {
+  color: #46d68a;
+  background: rgba(70, 214, 138, 0.1);
+  border-color: rgba(70, 214, 138, 0.34);
+}
+
+.pill--connected .pill__dot {
+  animation: ping 2.4s ease-out infinite;
+}
+
+.pill--connecting,
+.pill--reconnecting {
+  color: #f2c14e;
+  background: rgba(242, 193, 78, 0.09);
+  border-color: rgba(242, 193, 78, 0.3);
+}
+
+.pill--reconnecting {
+  color: #fb923c;
+  background: rgba(251, 146, 60, 0.09);
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+.pill--connecting .pill__dot,
+.pill--reconnecting .pill__dot {
+  animation: blink 1.15s ease-in-out infinite;
+}
+
+.coords {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  color: #5f677a;
+  transition: color 0.25s ease;
+}
+
+.coords--on {
+  color: #c3cadd;
+}
+
+/* ---------------- tablero ---------------- */
+
+.board-frame {
+  position: relative;
+  width: min(600px, 80vw);
+  aspect-ratio: 1 / 1;
+  border-radius: 15px;
+  overflow: hidden;
+  background: #ffffff;
+  cursor: crosshair;
+  touch-action: none;
+  box-shadow:
+    0 20px 55px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.board-frame__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* 1 celda = 1 píxel del canvas; el CSS sólo lo escala. */
+  image-rendering: pixelated;
+}
+
+/* Rejilla de 50x50 celdas (2% por celda). Sólo decorativa. */
+.board-frame__grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(11, 14, 20, 0.09) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(11, 14, 20, 0.09) 1px, transparent 1px);
+  background-size: 2% 2%;
+}
+
+/* Celda bajo el cursor: se desliza de una celda a otra. */
+.board-frame__cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2%;
+  height: 2%;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 2px rgba(11, 14, 20, 0.85),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.95);
+  transition:
+    transform 0.07s linear,
+    opacity 0.14s ease;
+  will-change: transform;
+}
+
+.board-frame__cursor--on {
+  opacity: 1;
+}
+
+/* ---------------- aviso flotante ---------------- */
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  color: #ffd9cf;
+  background: rgba(26, 17, 20, 0.93);
+  border: 1px solid rgba(255, 138, 110, 0.36);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition:
+    opacity 0.3s ease,
+    transform 0.34s var(--ease);
+}
+
+.toast--on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.toast__mark {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  flex: none;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2a1410;
+  background: #ff8a6e;
+}
+
+/* ---------------- paleta ---------------- */
+
+.board-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.swatch {
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 1px 3px rgba(0, 0, 0, 0.5);
+  transition:
+    transform 0.22s var(--ease),
+    box-shadow 0.22s var(--ease);
+}
+
+.swatch:hover {
+  transform: translateY(-2px) scale(1.07);
+}
+
+.swatch:active {
+  transform: translateY(0) scale(0.94);
+}
+
+.swatch:focus-visible {
+  outline: 2px solid #8b93ff;
+  outline-offset: 3px;
+}
+
+.swatch--active {
+  transform: scale(1.14);
+  box-shadow:
+    0 0 0 2px #0d1016,
+    0 0 0 4px #8b93ff,
+    0 8px 22px rgba(99, 102, 241, 0.42);
+}
+
+.hex {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.hex__chip {
+  width: 15px;
+  height: 15px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+/* ---------------- animaciones ---------------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(0, -3%, 0) scale(1.07);
+  }
+}
+
+@keyframes ping {
+  0% {
+    box-shadow: 0 0 0 0 rgba(70, 214, 138, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(70, 214, 138, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(70, 214, 138, 0);
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.22;
+  }
+}
+
+/* ---------------- responsive / accesibilidad ---------------- */
+
+@media (max-width: 540px) {
+  .board-card {
+    padding: 13px;
+    border-radius: 21px;
+    gap: 12px;
+  }
+
+  .board-frame {
+    width: min(600px, 78vw);
+  }
+
+  .swatch {
+    width: 25px;
+    height: 25px;
+    border-radius: 8px;
+  }
+
+  .board-card__foot {
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
